@@ -19,6 +19,9 @@ public:
 	void on_write();
 
 	bool waiting_for_write();
+
+	bool close_requested();
+
 	size_t get_to_write(uint8_t **outptr);
 	void clear_writebuf(size_t n);
 
@@ -27,6 +30,7 @@ public:
 protected:
 	std::vector<uint8_t> readbuf;
 	std::vector<uint8_t> writebuf;
+	bool _closerequest;
 };
 
 #endif

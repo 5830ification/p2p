@@ -9,6 +9,7 @@
 
 #define READ_BUFFER_SIZE 1024
 #define SOCKET_LISTEN_BACKLOG 16
+#define EPOLL_EVENT_BUFFER_SIZE 16
 
 class client;
 

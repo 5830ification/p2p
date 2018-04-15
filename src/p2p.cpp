@@ -26,7 +26,7 @@ int main(int argc, char const **argv) {
   printf("Server listening on port 8080!\n");
 
   int epoll = epoll_create(16); // Guesstimate of client count
-  struct epoll_event events[16];
+  struct epoll_event events[EPOLL_EVENT_BUFFER_SIZE];
 
   struct epoll_event evt;
   evt.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
@@ -36,7 +36,7 @@ int main(int argc, char const **argv) {
   clientmap clients;
 
   for (;;) {
-    int fd_count = epoll_wait(epoll, events, 16, -1);
+    int fd_count = epoll_wait(epoll, events, EPOLL_EVENT_BUFFER_SIZE, -1);
 
     if (fd_count < 0) {
       printf("epoll_wait failed!");
@@ -128,7 +128,7 @@ void handle_event(struct epoll_event evt, fd_t epoll, fd_t sockfd,
   } else if (clients.find(fd) != clients.end()) {
   	handle_client_event(evt, epoll, clients);
   } else {
-	log(LERROR, "Received epoll event on untracked fd: %d. Ignoring...\n", fd);
+	log(LERROR, "Received an untracked epoll_event on fd: %d\n", fd);
   }
 }
 
@@ -167,6 +167,8 @@ void handle_client_read(fd_t epollfd, fd_t client, clientmap& clients) {
 
 		if (clients[client]->waiting_for_write()) {
 			epoll_enable_write_listener(epollfd, client);	
+		} else if (clients[client]->close_requested()) {
+			disconnect_client(epollfd, client, clients);
 		}
 	}
 }
@@ -183,6 +185,11 @@ void handle_client_write(fd_t epollfd, fd_t client, clientmap& clients) {
 			log(LERROR, "Unkown error while writing: %d\n", written);
 		} else {
 			clients[client]->clear_writebuf(written);
+			clients[client]->on_write();
+
+			if (clients[client]->close_requested() && !clients[client]->waiting_for_write()) {
+				disconnect_client(epollfd, client, clients);
+			}
 		}
 	}
 }
@@ -198,12 +205,16 @@ void epoll_enable_write_listener(fd_t epollfd, fd_t client) {
 	struct epoll_event evt;
 	evt.data.fd = client;
 	evt.events = EPOLLIN | EPOLLOUT;
-	epoll_ctl(epollfd, EPOLL_CTL_MOD, client, &evt);
+	if (epoll_ctl(epollfd, EPOLL_CTL_MOD, client, &evt) != 0) {
+		log(LERROR, "epoll_ctl() failed!\n");
+	}
 }
 
 void epoll_disable_write_listener(fd_t epollfd, fd_t client) {
 	struct epoll_event evt;
 	evt.data.fd = client;
 	evt.events = EPOLLIN;
-	epoll_ctl(epollfd, EPOLL_CTL_MOD, client, &evt);
+	if (epoll_ctl(epollfd, EPOLL_CTL_MOD, client, &evt) != 0) {
+		log(LERROR, "epoll_ctl() failed!\n");
+	}
 }

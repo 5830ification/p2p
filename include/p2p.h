@@ -33,4 +33,8 @@ void handle_client_write(fd_t epollfd, fd_t client, clientmap& clients);
 void epoll_enable_write_listener(fd_t epollfd, fd_t client);
 void epoll_disable_write_listener(fd_t epollfd, fd_t client);
 
+fd_t connect_to_peer(struct sockaddr_in addr, unsigned short port);
+
+bool parse_peer_connstr(char const *str, struct sockaddr_in *addr, unsigned short *port);
+
 #endif

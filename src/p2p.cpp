@@ -22,8 +22,17 @@
 #include "log.h"
 
 int main(int argc, char const **argv) {
-  fd_t sockfd = bind_and_listen(8080);
-  printf("Server listening on port 8080!\n");
+  if (argc == 1) {
+	printf("Usage: %s [port]\n", argv[0]);
+	return 1;
+  } else if (argc == 2) {
+	log(LWARN, "No initial peers supplied as command line args. Starting in server-only mode...\n");
+  }
+
+  unsigned short port = atoi(argv[1]);
+
+  fd_t sockfd = bind_and_listen(port);
+  printf("Server listening on port %u!\n", port);
 
   int epoll = epoll_create(16); // Guesstimate of client count
   struct epoll_event events[EPOLL_EVENT_BUFFER_SIZE];
@@ -34,6 +43,29 @@ int main(int argc, char const **argv) {
   epoll_ctl(epoll, EPOLL_CTL_ADD, sockfd, &evt);
 
   clientmap clients;
+
+  for (int i = 2; i < argc; i++) {
+	unsigned short port;
+	struct sockaddr_in addr;
+
+	if (!parse_peer_connstr(argv[i], &addr, &port)) {
+	  log(LERROR, "Unable to parse connection string '%s'. Expected format: "
+	  	"<IP>:<Port>\n", argv[i]);
+	}
+
+	log(LINFO, "Connecting to peer with IP: %s...\n",
+		ipv4_to_str(addr.sin_addr.s_addr).c_str());
+	fd_t clisock = connect_to_peer(addr, port);
+	if (clisock < 0) {
+		continue;
+	}
+
+	client cli(clisock, addr);
+	prepare_client(&cli, epoll);
+	clients.insert({clisock, std::make_shared<client>(cli)});
+  	log(LINFO, "Connected to initial peer with IP %s\n", 
+		ipv4_to_str(addr.sin_addr.s_addr).c_str());
+  }
 
   for (;;) {
     int fd_count = epoll_wait(epoll, events, EPOLL_EVENT_BUFFER_SIZE, -1);
@@ -217,4 +249,62 @@ void epoll_disable_write_listener(fd_t epollfd, fd_t client) {
 	if (epoll_ctl(epollfd, EPOLL_CTL_MOD, client, &evt) != 0) {
 		log(LERROR, "epoll_ctl() failed!\n");
 	}
+}
+
+bool parse_peer_connstr(char const *str, struct sockaddr_in *addr, unsigned short *port) {
+	size_t len = strlen(str);
+	char const *colon = strchr(str, ':');
+	if (colon == NULL) {
+		return false;
+	}
+
+	if (colon + 1 >= str + len) {
+		return false;
+	}
+
+	unsigned int digits[4];
+	if (sscanf(str, "%u.%u.%u.%u", &digits[0], &digits[1], &digits[2], &digits[3]) != 4) {
+		return false;
+	}
+
+	unsigned int res = 0;
+	for (unsigned int i = 0; i < 4; i++) {
+		if (digits[i] > 255)
+			return false;
+
+		res |= (digits[i] << (8 * i));
+	}
+
+	unsigned int p = 0;
+	if (sscanf(colon, ":%u", &p) != 1) {
+		return false;
+	}
+
+	if (p > 0xFFFF) {
+		return false;
+	}
+
+	addr->sin_addr.s_addr = res;
+	*port = p;
+	return true;
+}
+
+fd_t connect_to_peer(struct sockaddr_in addr, unsigned short port) {
+	fd_t sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		log(LERROR, "Client connection failed: Socket creation failed: %d\n", sock);
+		return -1;
+	}
+
+	struct sockaddr_in server_addr = {};
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_addr = addr.sin_addr;
+	server_addr.sin_port = htons(port);
+
+	if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0) {
+		log(LERROR, "Client connection failed: connect() failed!\n");
+		return -1;
+	}
+
+	return sock;
 }

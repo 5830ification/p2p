@@ -18,14 +18,8 @@
 
 #include <sys/epoll.h>
 
-#include "app.h"
 #include "client.h"
 #include "log.h"
-
-int main(int argc, char const **argv) {
-	P2PApp app(argc, argv);
-	app.run();
-}
 
 fd_t bind_and_listen(unsigned short port) {
   fd_t socket_fd = socket(AF_INET, SOCK_STREAM, 0);

@@ -21,6 +21,7 @@ void log(loglevel_t lvl, const char *msg, ...) {
 	if (lvl >= G_LOGLEVEL) {
 		printf("[%s] ", lltos(lvl));
 		vprintf(msg, args);
+		printf("\n");
 	}
 
 	va_end(args);

@@ -136,7 +136,7 @@ void P2PApp::run() {
 
 		fd_t clisock = connect_to_peer(p.address, p.address.sin_port);
 
-		client cli(clisock, p.address);
+		client cli{clisock, p.address, true};
 		prepare_client(&cli, epoll_fd);
 		clients.insert({clisock, std::make_shared<client>(cli)});
 		log(LINFO, "Connected to initial peer with IP %s!",

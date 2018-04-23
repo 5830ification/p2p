@@ -1,6 +1,11 @@
 #include "client.h"
 
-client::client(fd_t fd, struct sockaddr_in addr): fd(fd), addr(addr), _closerequest(false) {}
+client::client(fd_t fd, struct sockaddr_in addr, bool active_mode): 
+	fd(fd), addr(addr), _closerequest(false),
+	_active_mode(active_mode)
+{
+
+}
 
 void client::add_read(uint8_t *ptr, size_t size) {
 	std::vector<uint8_t> bytes(ptr, ptr + size);

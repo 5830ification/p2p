@@ -25,12 +25,20 @@ public:
 	size_t get_to_write(uint8_t **outptr);
 	void clear_writebuf(size_t n);
 
-	client(fd_t fd, struct sockaddr_in addr);
+	/*
+	 * fd and addr for outside use by the IO driver...
+	 * active_mode:
+	 * 	true => this client is the initiator of a peer connection
+	 *			-> it is this client's task to send the hello packet
+	 *  false => this client has to wait for a hello packet 
+	 */
+	client(fd_t fd, struct sockaddr_in addr, bool active_mode);
 
 protected:
 	std::vector<uint8_t> readbuf;
 	std::vector<uint8_t> writebuf;
 	bool _closerequest;
+	bool _active_mode;
 };
 
 #endif

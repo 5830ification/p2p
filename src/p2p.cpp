@@ -70,7 +70,7 @@ client accept_client(fd_t listener) {
     exit(1);
   }
 
-  client cli = {client_sock, client_addr};
+  client cli = {client_sock, client_addr, false};
   return cli;
 }
 

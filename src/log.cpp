@@ -3,10 +3,11 @@
 #include <cstdio>
 #include <cstdarg>
 
-static loglevel_t G_LOGLEVEL = LINFO;
+static loglevel_t G_LOGLEVEL = LDBG;
 
 static const char *lltos(loglevel_t ll) {
 	switch (ll) {
+		case LDBG: return "DBG";
 		case LINFO: return "INFO";
 		case LWARN: return "WARN";
 		case LERROR: return "ERROR";

@@ -2,6 +2,7 @@
 #define LOG_H
 
 typedef enum {
+	LDBG,
 	LINFO,
 	LWARN,
 	LERROR

@@ -18,70 +18,13 @@
 
 #include <sys/epoll.h>
 
+#include "app.h"
 #include "client.h"
 #include "log.h"
 
 int main(int argc, char const **argv) {
-  if (argc == 1) {
-	printf("Usage: %s [port]\n", argv[0]);
-	return 1;
-  } else if (argc == 2) {
-	log(LWARN, "No initial peers supplied as command line args. Starting in server-only mode...\n");
-  }
-
-  unsigned short port = atoi(argv[1]);
-
-  fd_t sockfd = bind_and_listen(port);
-  printf("Server listening on port %u!\n", port);
-
-  int epoll = epoll_create(16); // Guesstimate of client count
-  struct epoll_event events[EPOLL_EVENT_BUFFER_SIZE];
-
-  struct epoll_event evt;
-  evt.events = EPOLLIN | EPOLLPRI | EPOLLERR | EPOLLHUP;
-  evt.data.fd = sockfd;
-  epoll_ctl(epoll, EPOLL_CTL_ADD, sockfd, &evt);
-
-  clientmap clients;
-
-  for (int i = 2; i < argc; i++) {
-	unsigned short port;
-	struct sockaddr_in addr;
-
-	if (!parse_peer_connstr(argv[i], &addr, &port)) {
-	  log(LERROR, "Unable to parse connection string '%s'. Expected format: "
-	  	"<IP>:<Port>\n", argv[i]);
-	}
-
-	log(LINFO, "Connecting to peer with IP: %s...\n",
-		ipv4_to_str(addr.sin_addr.s_addr).c_str());
-	fd_t clisock = connect_to_peer(addr, port);
-	if (clisock < 0) {
-		continue;
-	}
-
-	client cli(clisock, addr);
-	prepare_client(&cli, epoll);
-	clients.insert({clisock, std::make_shared<client>(cli)});
-  	log(LINFO, "Connected to initial peer with IP %s\n", 
-		ipv4_to_str(addr.sin_addr.s_addr).c_str());
-  }
-
-  for (;;) {
-    int fd_count = epoll_wait(epoll, events, EPOLL_EVENT_BUFFER_SIZE, -1);
-
-    if (fd_count < 0) {
-      printf("epoll_wait failed!");
-      return 1;
-    }
-
-    for (int e = 0; e < fd_count; e++) {
-      handle_event(events[e], epoll, sockfd, clients);
-    }
-  }
-
-  close(sockfd);
-  close(epoll);
+	P2PApp app(argc, argv);
+	app.run();
 }
 
 fd_t bind_and_listen(unsigned short port) {

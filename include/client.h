@@ -2,6 +2,7 @@
 #define CLIENT_H
 
 #include "p2p.h"
+#include "protocol.h"
 
 #include <cstdint>
 #include <cstring>
@@ -33,12 +34,20 @@ public:
 	 *  false => this client has to wait for a hello packet 
 	 */
 	client(fd_t fd, struct sockaddr_in addr, bool active_mode);
+	
+	~client();
 
+	// No copy
+	client(const client&) = delete;
 protected:
 	std::vector<uint8_t> readbuf;
 	std::vector<uint8_t> writebuf;
 	bool _closerequest;
 	bool _active_mode;
+
+	Packet *packetbuf;
+
+	void clear_readbuf(size_t n);
 };
 
 #endif

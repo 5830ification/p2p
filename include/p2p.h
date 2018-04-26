@@ -6,6 +6,7 @@
 #include <string>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <tuple>
 
 #define READ_BUFFER_SIZE 1024
 #define SOCKET_LISTEN_BACKLOG 16
@@ -19,8 +20,8 @@ typedef std::map<fd_t, std::shared_ptr<client>> clientmap;
 fd_t bind_and_listen(unsigned short port);
 std::string ipv4_to_str(in_addr_t addr);
 
-client accept_client(fd_t listener);
-void prepare_client(client *client, fd_t epoll_fd);
+std::tuple<fd_t, struct sockaddr_in> accept_client(fd_t listener);
+void prepare_client(fd_t client_fd, fd_t epoll_fd);
 
 void handle_event(struct epoll_event evt, fd_t epoll, fd_t sockfd, clientmap& clients);
 

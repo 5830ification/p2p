@@ -54,7 +54,7 @@ fd_t bind_and_listen(unsigned short port) {
   return socket_fd;
 }
 
-client accept_client(fd_t listener) {
+std::tuple<fd_t, struct sockaddr_in> accept_client(fd_t listener) {
   struct sockaddr_in client_addr = {};
   socklen_t client_addr_len = sizeof(client_addr);
   fd_t client_sock =
@@ -64,20 +64,19 @@ client accept_client(fd_t listener) {
     exit(1);
   }
 
-  client cli = {client_sock, client_addr, false};
-  return cli;
+  return std::make_pair(client_sock, client_addr);
 }
 
-void prepare_client(client *client, fd_t epoll_fd) {
-  if (fcntl(client->fd, F_SETFL, O_NONBLOCK) == -1) {
+void prepare_client(fd_t client_fd, fd_t epoll_fd) {
+  if (fcntl(client_fd, F_SETFL, O_NONBLOCK) == -1) {
     perror("fcntl() failed");
     exit(1);
   }
 
   struct epoll_event evt;
   evt.events = EPOLLIN;
-  evt.data.fd = client->fd;
-  epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client->fd, &evt);
+  evt.data.fd = client_fd;
+  epoll_ctl(epoll_fd, EPOLL_CTL_ADD, client_fd, &evt);
 }
 
 void disconnect_client(fd_t epoll, fd_t client_fd, clientmap &clients) {
@@ -102,13 +101,22 @@ void handle_event(struct epoll_event evt, fd_t epoll, fd_t sockfd,
 }
 
 void handle_client_accept(fd_t sockfd, fd_t epollfd, clientmap& clients) {
-	client cli = accept_client(sockfd);
-	prepare_client(&cli, epollfd);
-	clients.insert({cli.fd, std::make_shared<client>(cli)});
+	auto cli = accept_client(sockfd);
+	prepare_client(std::get<0>(cli), epollfd);
+	clients.insert(
+		{
+			std::get<0>(cli), 
+			std::make_shared<client>(
+				std::get<0>(cli),
+				std::get<1>(cli),
+				false
+			)
+		}
+	);
 
 	log(LINFO, "Accepted client with IP: %s at fd: %d\n", 
-		ipv4_to_str(cli.addr.sin_addr.s_addr).c_str(),
-		cli.fd);
+		ipv4_to_str(std::get<1>(cli).sin_addr.s_addr).c_str(),
+		std::get<0>(cli));
 }
 
 void handle_client_event(struct epoll_event evt, fd_t epollfd, clientmap& clients) {

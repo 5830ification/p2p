@@ -15,7 +15,7 @@
 class client;
 
 typedef int fd_t;
-typedef std::map<fd_t, std::shared_ptr<client>> clientmap;
+typedef std::map<fd_t, std::unique_ptr<client>> clientmap;
 
 fd_t bind_and_listen(unsigned short port);
 std::string ipv4_to_str(in_addr_t addr);

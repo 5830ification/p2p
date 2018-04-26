@@ -106,7 +106,7 @@ void handle_client_accept(fd_t sockfd, fd_t epollfd, clientmap& clients) {
 	clients.insert(
 		{
 			std::get<0>(cli), 
-			std::make_shared<client>(
+			std::make_unique<client>(
 				std::get<0>(cli),
 				std::get<1>(cli),
 				false
